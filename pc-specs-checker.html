@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC Specs Checker</title>
+<style>
+:root{color-scheme:dark;--bg:#090d16;--panel:#111827;--panel2:#151f30;--line:#26344a;--text:#edf3ff;--muted:#94a3b8;--accent:#65a8ff;--green:#55d6a0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#152642 0%,var(--bg) 55%);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{width:min(1050px,calc(100% - 32px));margin:48px auto}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+.eyebrow{color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:8px 0}.sub{color:var(--muted);margin:0}
+.actions{display:flex;gap:10px}button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:11px 15px;border-radius:10px;font-weight:700;cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent);color:#071323}button:hover{filter:brightness(1.12)}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin:18px 0}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px #55d6a080}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:linear-gradient(145deg,#141e2e,#101725);border:1px solid var(--line);border-radius:16px;padding:20px;min-width:0}.card.wide{grid-column:1/-1}
+.cardhead{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:15px}.ico{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#203653;color:var(--accent);font-size:17px}
+.value{font-size:21px;font-weight:750;overflow-wrap:anywhere}.detail{color:var(--muted);font-size:13px;margin-top:5px}.rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.rowlabel{color:var(--muted);font-size:12px;margin-bottom:3px}.rowvalue{font-weight:650;overflow-wrap:anywhere}
+.meter{height:8px;border-radius:99px;background:#26344a;overflow:hidden;margin-top:12px}.fill{height:100%;background:linear-gradient(90deg,#4e9bff,#6ddbb2);width:0%;border-radius:99px}
+.note{color:var(--muted);font-size:12px;margin-top:22px}.footer{color:#64748b;font-size:12px;text-align:center;margin:28px 0}
+@media(max-width:650px){main{margin:30px auto}.grid{grid-template-columns:1fr}.card.wide{grid-column:auto}.rows{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.actions{width:100%}.actions button{flex:1}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <div class="eyebrow">System information</div>
+      <h1>PC Specs Checker</h1>
+      <p class="sub">A quick overview of the hardware and browser details this device exposes.</p>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="scan()">↻ Refresh</button>
+      <button onclick="copyReport()">Copy report</button>
+    </div>
+  </div>
+  <div class="status"><span class="dot"></span><span id="status">Ready to scan this device</span></div>
+
+  <section class="grid">
+    <article class="card">
+      <div class="cardhead"><span class="ico">▤</span> Processor</div>
+      <div class="value" id="cpu">Checking…</div>
+      <div class="detail" id="cores">Logical processor cores: —</div>
+    </article>
+    <article class="card">
+      <div class="cardhead"><span class="ico">▦</span> Memory</div>
+      <div class="value" id="ram">Checking…</div>
+      <div class="detail" id="ramdetail">Browser-reported device memory</div>
+    </article>
+    <article class="card">
+      <div class="cardhead"><span class="ico">▣</span> Graphics</div>
+      <div class="value" id="gpu">Checking…</div>
+      <div class="detail" id="gpudetail">WebGL graphics device</div>
+    </article>
+    <article class="card">
+      <div class="cardhead"><span class="ico">▰</span> Storage</div>
+      <div class="value" id="storage">Checking…</div>
+      <div class="detail" id="storagedetail">Browser storage estimate</div>
+      <div class="meter"><div class="fill" id="storagebar"></div></div>
+    </article>
+    <article class="card wide">
+      <div class="cardhead"><span class="ico">⌘</span> System & browser</div>
+      <div class="rows">
+        <div><div class="rowlabel">Operating system</div><div class="rowvalue" id="os">—</div></div>
+        <div><div class="rowlabel">Browser</div><div class="rowvalue" id="browser">—</div></div>
+        <div><div class="rowlabel">Screen resolution</div><div class="rowvalue" id="screen">—</div></div>
+        <div><div class="rowlabel">Device pixel ratio</div><div class="rowvalue" id="pixel">—</div></div>
+        <div><div class="rowlabel">Language</div><div class="rowvalue" id="language">—</div></div>
+        <div><div class="rowlabel">Online status</div><div class="rowvalue" id="online">—</div></div>
+      </div>
+    </article>
+  </section>
+  <p class="note">Privacy: this page runs locally in your browser and does not send your information anywhere. Browser security prevents websites from reading exact CPU model, exact installed RAM, individual drive models/capacities, and some GPU details. Values marked as estimates are not guaranteed to match your PC's full specifications.</p>
+  <div class="footer">PC Specs Checker · Local-only scan</div>
+</main>
+<script>
+let report = {};
+function set(id,value){document.getElementById(id).textContent=value;}
+function detectOS(){
+ const ua=navigator.userAgent||"";
+ if(/Windows NT 10/.test(ua)) return "Windows 10 / 11";
+ if(/Windows NT 6\.3/.test(ua)) return "Windows 8.1";
+ if(/Windows NT 6\.1/.test(ua)) return "Windows 7";
+ if(/Android/.test(ua)) return "Android";
+ if(/iPhone|iPad|iPod/.test(ua)) return "iOS / iPadOS";
+ if(/Mac OS X/.test(ua)) return "macOS";
+ if(/Linux/.test(ua)) return "Linux";
+ return "Not identified by browser";
+}
+function detectBrowser(){
+ const ua=navigator.userAgent||"";
+ if(/Edg\//.test(ua)) return "Microsoft Edge";
+ if(/OPR\//.test(ua)) return "Opera";
+ if(/Firefox\//.test(ua)) return "Mozilla Firefox";
+ if(/Chrome\//.test(ua) && !/Chromium/.test(ua)) return "Google Chrome";
+ if(/Safari\//.test(ua) && !/Chrome\//.test(ua)) return "Safari";
+ return "Browser not identified";
+}
+function detectGPU(){
+ try{
+  const canvas=document.createElement("canvas");
+  const gl=canvas.getContext("webgl")||canvas.getContext("experimental-webgl");
+  if(!gl) return {name:"Not available",detail:"WebGL is disabled or unsupported"};
+  const ext=gl.getExtension("WEBGL_debug_renderer_info");
+  const name=ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);
+  const vendor=ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR);
+  return {name:name||"Graphics device detected",detail:vendor||"GPU vendor hidden by browser"};
+ }catch(e){return {name:"Not available",detail:"Browser blocked graphics information"}}
+}
+async function scan(){
+ set("status","Scanning device information…");
+ const cores=navigator.hardwareConcurrency||null;
+ const memory=navigator.deviceMemory||null;
+ set("cpu","Exact model unavailable");
+ set("cores", "Logical processor cores: "+(cores??"Not exposed"));
+ set("ram",memory?memory+" GB (approximate)":"Not exposed");
+ set("ramdetail","Browser-reported device memory, rounded to a limited value");
+ const gpu=detectGPU();set("gpu",gpu.name);set("gpudetail",gpu.detail);
+ let storageText="Not available",storageDetail="Browser storage estimate unavailable",percent=0,storageData=null;
+ if(navigator.storage&&navigator.storage.estimate){
+  try{
+   const s=await navigator.storage.estimate();
+   if(s.quota!=null){
+    const used=s.usage||0, quota=s.quota;
+    storageText=(used/1073741824).toFixed(2)+" GB used";
+    storageDetail=(quota/1073741824).toFixed(2)+" GB browser storage quota · not total disk capacity";
+    percent=quota?Math.min(100,used/quota*100):0;
+    storageData={usedGB:(used/1073741824).toFixed(2),quotaGB:(quota/1073741824).toFixed(2)};
+   }
+  }catch(e){}
+ }
+ set("storage",storageText);set("storagedetail",storageDetail);document.getElementById("storagebar").style.width=percent+"%";
+ set("os",detectOS());set("browser",detectBrowser());
+ set("screen",screen.width+" × "+screen.height+" px");
+ set("pixel",String(window.devicePixelRatio||1)+"×");
+ set("language",navigator.language||"Not exposed");
+ set("online",navigator.onLine?"Online":"Offline");
+ report={
+  CPU:"Exact model not exposed by browser",
+  "Logical processor cores":cores??"Not exposed",
+  RAM:memory?memory+" GB approximate":"Not exposed",
+  GPU:gpu.name+" ("+gpu.detail+")",
+  Storage:storageData?storageData.usedGB+" GB used of "+storageData.quotaGB+" GB browser quota":"Not available",
+  "Operating system":detectOS(),"Browser":detectBrowser(),
+  "Screen resolution":screen.width+" × "+screen.height+" px",
+  "Device pixel ratio":String(window.devicePixelRatio||1)+"×",
+  Language:navigator.language||"Not exposed",
+  Online:navigator.onLine?"Yes":"No"
+ };
+ set("status","Scan complete · "+new Date().toLocaleTimeString());
+}
+async function copyReport(){
+ if(!Object.keys(report).length) await scan();
+ const textReport="PC SPECS CHECKER\n"+Object.entries(report).map(([k,v])=>k+": "+v).join("\n");
+ try{await navigator.clipboard.writeText(textReport);set("status","Report copied to clipboard");}
+ catch(e){set("status","Clipboard blocked by browser — select and copy manually");}
+}
+scan();
+</script>
+</body>
+</html>
